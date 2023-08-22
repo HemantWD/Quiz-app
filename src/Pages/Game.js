@@ -1,43 +1,44 @@
-import React, { useState } from "react";
-
-const questionsArray = [
-  {
-    questions: "Inside which HTML element do we put the JavaScript??",
-    choice1: "<script>",
-    choice2: "<javascript>",
-    choice3: "<js>",
-    choice4: "<scripting>",
-    correctAnswer: 1,
-  },
-  {
-    questions:
-      "What is the correct syntax for referring to an external script called 'xxx.js'?",
-    choice1: "<script href='xxx.js'>",
-    choice2: "<script name='xxx.js'>",
-    choice3: "<script src='xxx.js'>",
-    choice4: "<script file='xxx.js'>",
-    correctAnswer: 3,
-  },
-  {
-    questions: " How do you write 'Hello World' in an alert box?",
-    choice1: "msgBox('Hello World');",
-    choice2: "alertBox('Hello World');",
-    choice3: "msg('Hello World');",
-    choice4: "alert('Hello World');",
-    correctAnswer: 4,
-  },
-];
+import React, { useEffect, useState } from "react";
+import { EndPage } from "./EndPage";
 
 export const Game = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState("");
   const [score, setScore] = useState(0);
+  const [questionsArray, setQuestionsArray] = useState([]);
+
+  useEffect(() => {
+    fetch(
+      "https://opentdb.com/api.php?amount=10&category=9&difficulty=easy&type=multiple"
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        const loadedQuestion = data.results;
+        const formattedQuestions = loadedQuestion.map((question) => {
+          const formattedQuestion = {
+            question: question.question,
+            correctAnswer: question.correct_answer,
+            choices: [...question.incorrect_answers],
+          };
+          formattedQuestion.choices.splice(
+            Math.floor(Math.random() * 4) + 1,
+            0,
+            formattedQuestion.correctAnswer
+          );
+          return formattedQuestion;
+        });
+        setQuestionsArray(formattedQuestions);
+      })
+      .catch((error) => {
+        console.log("Error Fetching the API: ", error);
+      });
+  }, []);
 
   const currentQuestion = questionsArray[currentQuestionIndex];
 
-  const handleAnswerSelection = (selectedChoice, correctChoice) => {
-    setSelectedAnswer(selectedChoice);
-    if (selectedChoice === correctChoice) {
+  const handleAnswerSelection = (selectedChoiceIndex, correctChoiceIndex) => {
+    setSelectedAnswer(selectedChoiceIndex);
+    if (selectedChoiceIndex === correctChoiceIndex) {
       setScore(score + 1);
     }
   };
@@ -53,13 +54,14 @@ export const Game = () => {
 
   if (currentQuestionIndex >= questionsArray.length) {
     return (
-      <div className="w-screen h-screen flex justify-center items-center p-8">
+      <div className="w-screen h-screen flex flex-col justify-center items-center p-8">
         <div className="bg-slate-300 p-8 rounded-lg shadow-md text-center">
           <h1 className="font-semibold ">Quiz Completed</h1>
           <p className="text-3xl text-green-600">
-            Your Score:{score}/{questionsArray.length}
+            Your Score: {score}/{questionsArray.length}
           </p>
         </div>
+        <EndPage />
       </div>
     );
   }
@@ -67,35 +69,43 @@ export const Game = () => {
   return (
     <div className="w-screen h-screen flex justify-center items-center p-8">
       <div id="game" className="flex flex-col justify-center">
-        <h2 id="question">{currentQuestion.questions}</h2>
-        {/* *! we are not copying the div here because we want that thing to be dynamc and the code looks simple */}
-        {Object.keys(currentQuestion).map((key, index) => {
-          if (key.includes("choice")) {
-            const choiceNumber = parseInt(key.slice(-1));
-            return (
-              <div
-                key={index}
-                className={` flex w-full mb-2 cursor-pointer border-2 ${
-                  selectedAnswer === key
-                    ? choiceNumber === currentQuestion.correctAnswer
-                      ? "border-green-400 bg-green-400"
-                      : "border-red-400 bg-red-400"
-                    : "border-slate-400 bg-white"
-                } text-2xl hover:shadow-md transform hover:-translate-y-1 hover:transition-transform duration-150`}
-                onClick={() =>
-                  handleAnswerSelection(
-                    key,
-                    `choice${currentQuestion.correctAnswer}`
-                  )
-                }
-              >
-                <p className="py-6  px-11 bg-blue-400 text-white">
-                  {`Option ${choiceNumber}`}
-                </p>
-                <p className="p-6">{currentQuestion[key]}</p>
-              </div>
-            );
-          }
+        <div className="flex flex-col justify-center">
+          <div className="flex justify-center">
+            <div className="">
+              <p className="text-center text-3xl font-bold">Question</p>
+              <h1>
+                {currentQuestionIndex + 1}/{questionsArray.length}
+              </h1>
+            </div>
+          </div>
+        </div>
+        <h2 id="question">{currentQuestion.question}</h2>
+        {currentQuestion.choices.map((choice, index) => {
+          const choiceNumber = index + 1;
+          const isSelected = selectedAnswer === `choices${choiceNumber}`;
+          const isCorrect =
+            index ===
+            currentQuestion.choices.indexOf(currentQuestion.correctAnswer);
+          return (
+            <div
+              key={index}
+              className={` flex w-full mb-2 cursor-pointer border-2 ${
+                isSelected
+                  ? isCorrect
+                    ? "border-green-400 bg-green-400"
+                    : "border-red-400 bg-red-400"
+                  : "border-slate-400 bg-white"
+              } text-2xl hover:shadow-md transform hover:-translate-y-1 hover:transition-transform duration-150`}
+              onClick={() =>
+                handleAnswerSelection(`choices${choiceNumber}`, index)
+              }
+            >
+              <p className="py-6 px-11 bg-blue-400 text-white">
+                {`Option ${choiceNumber}`}
+              </p>
+              <p className="p-6">{choice}</p>
+            </div>
+          );
         })}
         <div className="flex justify-between p-4">
           <button
